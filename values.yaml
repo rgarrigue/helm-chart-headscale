@@ -4,12 +4,104 @@ fullnameOverride: ""
 imagePullSecrets: []
 
 headscale:
+  # Headscale configuration, mounted as is via a configMap in /etc/headscale/config.yaml
+  # If Headplane is enabled, Helm won't replace/upgrade the configMap if it exists
+  config:
+    server_url: https://headscale.example.cloud:443
+    listen_addr: 0.0.0.0:8080
+    metrics_listen_addr: 127.0.0.1:9090
+    grpc_listen_addr: 127.0.0.1:50443
+    grpc_allow_insecure: false
+    noise:
+      private_key_path: /var/lib/headscale/noise_private.key
+    prefixes:
+      v6: fd7a:115c:a1e0::/48
+      v4: 100.64.0.0/10
+      allocation: random
+    derp:
+      server:
+        enabled: false
+        region_id: 999
+        region_code: "headscale"
+        region_name: "Headscale Embedded DERP"
+        stun_listen_addr: "0.0.0.0:3478"
+        private_key_path: /var/lib/headscale/derp_server_private.key
+        automatically_add_embedded_derp_region: true
+        ipv4: 1.2.3.4
+        ipv6: 2001:db8::1
+      urls:
+        - https://controlplane.tailscale.com/derpmap/default
+      paths: []
+      auto_update_enabled: true
+      update_frequency: 24h
+    disable_check_updates: true
+    ephemeral_node_inactivity_timeout: 30m
+    database:
+      type: sqlite
+      debug: false
+      gorm:
+        prepare_stmt: true
+        parameterized_queries: true
+        skip_err_record_not_found: true
+        slow_threshold: 1000
+      sqlite:
+        path: /var/lib/headscale/db.sqlite
+        write_ahead_log: true
+    acme_url: https://acme-v02.api.letsencrypt.org/directory
+    acme_email: ""
+    tls_letsencrypt_hostname: ""
+    tls_letsencrypt_cache_dir: /var/lib/headscale/cache
+    tls_letsencrypt_challenge_type: HTTP-01
+    tls_letsencrypt_listen: ":http"
+    log:
+      format: json
+      level: info
+    policy:
+      mode: file
+      path: ""
+    dns:
+      magic_dns: true
+      base_domain: example.internal
+      nameservers:
+        global:
+          - 9.9.9.9
+          - 149.112.112.112
+          - 2620:fe::fe
+          - 2620:fe::9
+        split:
+          {}
+      search_domains: []
+      extra_records: []
+    unix_socket: /var/run/headscale/headscale.sock
+    unix_socket_permission: "0770"
+    oidc:
+      only_start_if_oidc_is_available: true
+      issuer: "https://accounts.google.com"
+      client_id: "___________-____________________.apps.googleusercontent.com"
+      client_secret: "GOCSPX-___________________"
+      expiry: 30d
+      use_expiry_from_token: false
+      scope: ["openid", "profile", "email"]
+      extra_params:
+        domain_hint: example.com
+      allowed_domains:
+        - example.com
+      allowed_groups: []
+        #  - /headscale
+      allowed_users: []
+        # - alice@example.com
+      strip_email_domain: true
+    logtail:
+      enabled: false
+    randomize_client_port: false
+
   image:
     repository: headscale/headscale
     pullPolicy: IfNotPresent
     tag: latest
     command:
       - serve
+
   resources: {}
     # limits:
     #   cpu: 100m
@@ -17,14 +109,19 @@ headscale:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
+
   service:
     type: ClusterIP
     port: 80
+
   volumeMounts:
     - name: headscale-data
       mountPath: /var/lib/headscale
     - name: headscale-config
-      mountPath: /etc/headscale
+      mountPath: /etc/headscale/config.yaml
+      subPath: config.yaml
+      readOnly: false
+
   livenessProbe:
     httpGet:
       path: /health
@@ -36,10 +133,25 @@ headscale:
 
 headplane:
   enabled: false
+
+  api:
+    disableLogin: "false"
+    # Ignored if secret.create: false
+    key: abcdefghijklmnopqrstuvwxyz
+
+  cookie:
+    # Only set this to false if you aren't behind a reverse proxy
+    secure: false
+    # Ignored if secret.create: false
+    value: abcdefghijklmnopqrstuvwxyz
+
+  debug: "false"
+
   image:
     repository: ghcr.io/tale/headplane
     pullPolicy: IfNotPresent
     tag: latest
+
   resources: {}
     # limits:
     #   cpu: 100m
@@ -47,12 +159,16 @@ headplane:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
+
   service:
     type: ClusterIP
     port: 3000
+
   volumeMounts:
     - name: headscale-config
-      mountPath: /etc/headscale
+      mountPath: /etc/headscale/config.yaml
+      subPath: config.yaml
+      readOnly: false
 
   livenessProbe:
     httpGet:
@@ -63,25 +179,13 @@ headplane:
       path: /
       port: http
 
-config:
-  headplane:
-    api:
-      disableLogin: "false"
-      # Ignored if secret.create: false
-      key: abcdefghijklmnopqrstuvwxyz
-    debug: "false"
-
-  cookie:
-    # Only set this to false if you aren't behind a reverse proxy
-    secure: false
-    # Ignored if secret.create: false
-    value: abcdefghijklmnopqrstuvwxyz
-
-  secret:
-    # Either let the chart create the secret 
-    create: true
-    # Or create it yourself 
-    name: headscale-secret
+# Secret for both Headscale & Headplane
+secret:
+  # Either let the chart create the secret 
+  # Or create it yourself, see templates/secret.yaml for the required keys
+  # Additional keys like "oidcClientSecret" can be added 
+  create: true
+  name: headscale
 
 replicaCount: 1
 
@@ -112,11 +216,11 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts: []
-  #  - headscale.local
+  #  - headscale.example.com
   tls: []
   #  - secretName: headscale-tls
   #    hosts:
-  #      - headscale.local
+  #      - headscale.example.com
 
 autoscaling:
   enabled: false
@@ -130,8 +234,8 @@ volumes:
     persistentVolumeClaim:
       claimName: headscale-data
   - name: headscale-config
-    persistentVolumeClaim:
-      claimName: headscale-config
+    configMap:
+      name: headscale-config
 
 nodeSelector: {}
 

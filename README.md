@@ -2,5 +2,6 @@
 
 > Headscale is an open source, self-hosted implementation of the Tailscale control server.
 
-Helm chart deploying [Headscale](https://headscale.net/), with the UI [Headplane](https://github.com/tale/.headplane) as a sidecar.
+Helm chart deploying [Headscale](https://headscale.net/), with optionaly the UI [Headplane](https://github.com/tale/.headplane).
+
 

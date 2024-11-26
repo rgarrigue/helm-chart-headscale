@@ -1,0 +1,11 @@
+{{- if not ( and ( .Values.headplane.enabled ) ( lookup "v1" "ConfigMap" .Release.Namespace "headscale" ) ) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale
+  labels:
+    {{- include "headscale.labels" . | nindent 4 }}
+data:
+  config.yaml: |-
+    {{- .Values.headscale.config | nindent 4 }}
+{{- end }}
