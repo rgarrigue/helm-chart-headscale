@@ -25,19 +25,24 @@ spec:
   {{- end }}
   rules:
     {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ . | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            {{- with .pathType }}
-            pathType: {{ . }}
-            {{- end }}
+          - path: /
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: {{ include "headscale.fullname" $ }}
                 port:
-                  number: {{ $.Values.service.port }}
+                  number: 80
+          {{- if .Values.headplane.enabled }}
+          - path: /admin
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "headplane.fullname" $ }}
+                port:
+                  number: 3000
           {{- end }}
     {{- end }}
 {{- end }}

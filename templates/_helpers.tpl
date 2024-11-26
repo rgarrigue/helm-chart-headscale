@@ -24,6 +24,31 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{/*
+Expand a name for headplane.
+*/}}
+{{- define "headplane.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 60 | trimSuffix "-" }}-hp
+{{- end }}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
+*/}}
+{{- define "headplane.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 60 | trimSuffix "-" }}-hp
+{{- else }}
+{{- $name := default .Chart.Name .Values.nameOverride }}
+{{- if contains $name .Release.Name }}
+{{- .Release.Name | trunc 60 | trimSuffix "-" }}-hp
+{{- else }}
+{{- printf "%s-%s" .Release.Name $name | trunc 60 | trimSuffix "-" }}-hp
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "headscale.chart" -}}
@@ -43,15 +68,24 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Selector labels
+Headscale selector labels
 */}}
 {{- define "headscale.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "headscale.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
+
 {{/*
-Create the name of the service account to use
+Headplane selector labels
+*/}}
+{{- define "headplane.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "headplane.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Create the name of the headscale service account to use
 */}}
 {{- define "headscale.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}

@@ -5,9 +5,9 @@ metadata:
   labels:
     {{- include "headscale.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ .Values.headscale.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
+    - port: {{ .Values.headscale.service.port }}
       targetPort: http
       protocol: TCP
       name: http

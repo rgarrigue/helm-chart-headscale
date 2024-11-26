@@ -1,0 +1,15 @@
+{{- if .Values.headplane.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "headplane.fullname" . }}
+  labels:
+    {{- include "headplane.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['get', 'list']
+  - apiGroups: ['apps']
+    resources: ['deployments']
+    verbs: ['get', 'list']
+{{- end }}
